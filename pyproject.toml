@@ -8,6 +8,38 @@ dependencies = [
     "dotenv>=0.9.9",
     "miniflux>=1.1.4",
     "ollama>=0.5.1",
-    "pydantic-ai>=0.4.3",
-    "pydantic-ai-slim[openai]>=0.4.3",
+    "pydantic>=2.0.0",
+    "pytest>=8.4.1",
+    "pytest-asyncio>=1.1.0",
+    "pytest-cov>=6.0.0",
 ]
+
+[tool.pytest.ini_options]
+addopts = "--cov=. --cov-report=term-missing --cov-report=html --cov-fail-under=85"
+testpaths = [
+    ".",
+]
+
+[tool.coverage.run]
+source = ["."]
+omit = [
+    ".venv/*",
+    "__pycache__/*",
+    "test_*.py",
+    "*/.git/*",
+    ".pytest_cache/*",
+    "htmlcov/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+]
+show_missing = true

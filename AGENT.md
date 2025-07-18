@@ -5,26 +5,32 @@
 - **Install dependencies**: `uv sync`
 - **Add dependency**: `uv add <package>`
 - **Python version**: Requires Python >=3.13
-- **Test**: No test framework configured
+- **Test**: `uv run pytest`
+- **Test with coverage**: `uv run pytest --cov`
+- **Coverage report**: `uv run pytest --cov --cov-report=html` (generates htmlcov/ folder)
+- **Coverage threshold**: 85% minimum required (currently 98%)
+- **Coverage with missing lines**: `uv run pytest --cov --cov-report=term-missing`
 
 ## Local Development
 - **Start services**: `docker-compose up -d`
 - **Stop services**: `docker-compose down`
 - **View logs**: `docker-compose logs -f miniflux`
 - **Miniflux UI**: http://localhost:8080 (admin/admin123)
-- **Setup Ollama model**: `docker-compose exec ollama ollama pull gemma3:4b`
+- **Setup Ollama model**: `ollama pull deepseek-r1:8b`
 
 ## Architecture
 This is a simple RSS article summarization agent that:
 1. Fetches recent articles from Miniflux RSS reader API
-2. Summarizes them using Ollama AI (gemma3:4b model)
+2. Summarizes them using Ollama AI (deepseek-r1:8b model)
 3. Outputs organized summaries by category
 
 **Key components:**
-- `main.py`: Single-file application with main logic
-- Dependencies: `miniflux` (RSS API), `ollama` (AI client)
-- Uses environment variables: `MINIFLUX_API_KEY`, `AI_KEY`
-- Hardcoded endpoints: `https://rss.home.trly.dev`, `https://ai.home.trly.dev`
+- `main.py`: Main application logic with async processing
+- `models.py`: Pydantic models for data validation
+- `test_*.py`: Comprehensive test suite with 98% coverage
+- Dependencies: `miniflux` (RSS API), `ollama` (AI client), `pydantic` (data validation), `pytest-cov` (testing)
+- Uses environment variables: `MINIFLUX_API_KEY`, `MINIFLUX_URL`, `LOG_LEVEL`, `LOG_FORMAT`
+- Uses local Ollama endpoint: `http://localhost:11434`
 
 ## Code Style
 - Use standard Python formatting and conventions

@@ -1,118 +1,234 @@
-from datetime import datetime, timedelta
-from typing import List, Dict, Any
-from dataclasses import dataclass
+"""Main application for RSS article summarization using direct Ollama tool calling."""
+
+import asyncio
+from datetime import datetime, timedelta, timezone
+import logging
 import os
 import miniflux
+import ollama
 from dotenv import load_dotenv
-from pydantic_ai import Agent, RunContext
-from pydantic_ai.models.openai import OpenAIModel
-from pydantic_ai.providers.openai import OpenAIProvider
-from pydantic import BaseModel
+
+from models import EntriesResponse, ArticleInput, ArticleSummary, CategoryEnum
 
 
-class SummaryResult(BaseModel):
-    content: str
-    generated_at: datetime
+# Configure logging
+def setup_logging():
+    """Configure logging based on environment variables."""
+    log_level = os.getenv('LOG_LEVEL', 'INFO').upper()
+    log_format = os.getenv('LOG_FORMAT', '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    
+    logging.basicConfig(
+        level=getattr(logging, log_level, logging.INFO),
+        format=log_format,
+        handlers=[
+            logging.StreamHandler()
+        ]
+    )
+    
+    return logging.getLogger(__name__)
 
 
-@dataclass
-class Dependencies:
-    miniflux_client: miniflux.Client
-    time_filter: datetime
+logger = setup_logging()
 
 
-# Create the agent with system prompt
-agent = Agent(
-    OpenAIModel(
-        model_name='qwen3:4b',
-        provider=OpenAIProvider(base_url="http://localhost:11434/v1"),
-    ),
-    deps_type=Dependencies,
-    system_prompt="""
-You are an intelligent RSS article summarization assistant.
-Your primary function is to process lists of RSS articles, create concise summaries, and organize them by relevant tags and categories for easy consumption.
-
-Core Responsibilities:
-
-1. Article Analysis
-- Read and analyze each RSS article thoroughly
-- Identify key facts, main arguments, and significant developments
-- Extract essential information while maintaining accuracy
-- Note publication date, source, and author when available
-
-2. Summarization Guidelines
-- Create concise summaries (2-4 sentences per article)
-- Focus on the most newsworthy and actionable information
-- Maintain objectivity and avoid editorial commentary
-- Preserve important context and nuance
-- Include relevant numbers, dates, and specific details when significant
-
-Use this format for your output:
-
-# RSS Article Summary Report
-*Generated on [DATE]*
-
-## [CATEGORY NAME] ([count] articles)
-
-### [Subcategory/Tag]
-**[Article Title]** - *[Source, Date]*
-[2-4 sentence summary]
-
----
-
-## Quick Headlines
-- [Brief one-line summary of top 3-5 most important stories]
-
-## Trending Topics
-- [List of recurring themes or subjects appearing across multiple articles]
-
-Quality Standards:
-- Accuracy: Never invent or misrepresent information
-- Clarity: Use clear, accessible language
-- Brevity: Capture essence without unnecessary detail
-- Completeness: Include all critical information
-
-For Breaking News: Mark urgent stories with 🚨
-For Analysis/Opinion: Clearly distinguish between facts and opinions
-For Technical Content: Explain complex concepts in accessible terms
-
-Remember: Your goal is to help users quickly understand the day's important news across multiple sources while maintaining accuracy and providing useful organization.
-""",
-)
+def summarize_article(summary: str, category: str) -> dict:
+    """
+    Summarize an article and assign it a category.
+    
+    Args:
+        summary: A 2-4 sentence summary of the article
+        category: Category from: TECHNOLOGY, BUSINESS, POLITICS, SCIENCE, SPORTS, ENTERTAINMENT, HEALTH, OTHER
+    
+    Returns:
+        dict: Contains summary and category
+    """
+    return {"summary": summary, "category": category}
 
 
-@agent.tool
-async def fetch_recent_articles(ctx: RunContext[Dependencies]) -> List[Dict[str, Any]]:
-    """Fetch recent articles from Miniflux RSS reader"""
-    return ctx.deps.miniflux_client.get_entries(published_after=ctx.deps.time_filter)
+async def process_article(article: ArticleInput) -> ArticleSummary:
+    """Process a single article using direct Ollama tool calling."""
+    
+    try:
+        # Use Ollama client directly with tool calling
+        client = ollama.Client(host='http://localhost:11434')
+        
+        logger.info(f"Processing article {article.id}: {article.title}")
+        
+        response = client.chat(
+            model='llama3.1:8b',
+            messages=[{
+                'role': 'user', 
+                'content': f'''
+                Please summarize this article and categorize it using the summarize_article tool:
+                
+                Title: "{article.title}"
+                Source: {article.source}
+                Author: {article.author}
+                Published: {article.published_at}
+                Content: {article.content[:1000]}...
+                '''
+            }],
+            tools=[summarize_article],
+        )
+        
+        # Extract tool call results
+        if response['message'].get('tool_calls'):
+            tool_call = response['message']['tool_calls'][0]
+            if tool_call['function']['name'] == 'summarize_article':
+                result = summarize_article(**tool_call['function']['arguments'])
+                summary_text = result.get('summary', 'Summary generation failed')
+                category_text = result.get('category', 'OTHER')
+            else:
+                summary_text = 'Function not found'
+                category_text = 'OTHER'
+            
+            # Map category to enum
+            category_mapping = {
+                "TECHNOLOGY": CategoryEnum.TECHNOLOGY,
+                "BUSINESS": CategoryEnum.BUSINESS,
+                "POLITICS": CategoryEnum.POLITICS,
+                "SCIENCE": CategoryEnum.SCIENCE,
+                "SPORTS": CategoryEnum.SPORTS,
+                "ENTERTAINMENT": CategoryEnum.ENTERTAINMENT,
+                "HEALTH": CategoryEnum.HEALTH,
+                "OTHER": CategoryEnum.OTHER
+            }
+            
+            category = category_mapping.get(category_text, CategoryEnum.OTHER)
+            
+            # Create ArticleSummary
+            summary = ArticleSummary(
+                id=article.id,
+                title=article.title,
+                url=article.url,
+                published_at=article.published_at,
+                source=article.source,
+                author=article.author,
+                summary=summary_text,
+                category=category,
+                truncated=article.truncated
+            )
+            
+            logger.info(f"Successfully processed article {article.id}")
+            return summary
+        else:
+            logger.warning(f"No tool calls found for article {article.id}")
+            logger.debug(f"Response: {response}")
+            
+            # Fallback
+            return ArticleSummary(
+                id=article.id,
+                title=article.title,
+                url=article.url,
+                published_at=article.published_at,
+                source=article.source,
+                author=article.author,
+                summary="Tool call failed",
+                category=CategoryEnum.OTHER,
+                truncated=article.truncated
+            )
+            
+    except Exception as e:
+        logger.error(f"Error processing article {article.id}: {type(e).__name__}: {e}", exc_info=True)
+        
+        # Fallback
+        return ArticleSummary(
+            id=article.id,
+            title=article.title,
+            url=article.url,
+            published_at=article.published_at,
+            source=article.source,
+            author=article.author,
+            summary="Processing failed",
+            category=CategoryEnum.OTHER,
+            truncated=article.truncated
+        )
+
 
 async def main():
+    """Main application function."""
+    logger.info("Starting RSS summarization agent...")
+    
+    # Load environment variables
     load_dotenv()
     
-    # Calculate time filter (6 hours ago)
-    six_hours_ago = datetime.now() - timedelta(hours=6)
-    
-    # Create miniflux client
+    # Create Miniflux client
     miniflux_client = miniflux.Client(
-        os.environ["MINIFLUX_URL"], 
-        api_key=os.environ["MINIFLUX_API_KEY"]
+        os.getenv("MINIFLUX_URL"),
+        api_key=os.getenv("MINIFLUX_API_KEY")
     )
     
-    # Create dependencies
-    deps = Dependencies(
-        miniflux_client=miniflux_client,
-        time_filter=six_hours_ago
-    )
+    logger.info("Fetching recent articles...")
     
-    # Run the agent
-    result = await agent.run(
-        "Fetch recent articles and create a comprehensive summary organized by category",
-        deps=deps
-    )
+    try:
+        # Get entries from past 6 hours
+        entries_response = miniflux_client.get_entries()
+        
+        # Parse the response using our Pydantic model
+        entries_data = EntriesResponse.model_validate(entries_response)
+        
+        # Filter entries to only include those published within the last 6 hours
+        six_hours_ago = datetime.now(timezone.utc) - timedelta(hours=6)
+        entries_data.entries = [
+            entry for entry in entries_data.entries
+            if entry.published_at and datetime.fromisoformat(entry.published_at.replace('Z', '+00:00')) >= six_hours_ago
+        ]
+        
+        if not entries_data.entries:
+            logger.info("No entries found within the last 6 hours")
+            return
+        
+    except Exception as e:
+        logger.error(f"Error fetching entries: {e}", exc_info=True)
+        return
     
-    print(result.output)
+    # Convert to ArticleInput format
+    articles_for_ai = []
+    for entry in entries_data.entries:
+        try:
+            article = ArticleInput.from_entry(entry)
+            articles_for_ai.append(article)
+        except Exception as e:
+            logger.warning(f"Error converting entry {entry.id}: {e}")
+            continue
+    
+    if not articles_for_ai:
+        logger.info("No valid articles to process")
+        return
+    
+    logger.info(f"Processing {len(articles_for_ai)} articles using Ollama tool calling...")
+    
+    # Process articles sequentially to avoid overwhelming the model
+    summaries = []
+    for article in articles_for_ai:
+        try:
+            summary = await process_article(article)
+            summaries.append(summary)
+        except Exception as e:
+            logger.error(f"Error processing article {article.id}: {e}", exc_info=True)
+    
+    if not summaries:
+        logger.info("No article summaries generated")
+        return
+    
+    # Create simple report
+    categories = {}
+    for summary in summaries:
+        if summary.category not in categories:
+            categories[summary.category] = []
+        categories[summary.category].append(summary)
+    
+    logger.info(f"Generated {len(summaries)} article summaries across {len(categories)} categories")
+    
+    # Output formatted results
+    for category, articles in categories.items():
+        logger.info(f"\n## {category.value} ({len(articles)} articles)")
+        for article in articles:
+            logger.info(f"**{article.title}** - *{article.source}*")
+            logger.info(f"Published: {article.published_at}")
+            logger.info(f"Summary: {article.summary}")
+            logger.info(f"URL: {article.url}\n")
 
 
 if __name__ == "__main__":
-    import asyncio
     asyncio.run(main())

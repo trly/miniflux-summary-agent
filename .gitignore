@@ -9,5 +9,20 @@ wheels/
 # Virtual environments
 .venv
 
-# environment files
+# Environment files
 .env
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE/Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
