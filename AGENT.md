@@ -29,7 +29,7 @@ This is a simple RSS article summarization agent that:
 - `models.py`: Pydantic models for data validation
 - `test_*.py`: Comprehensive test suite with 98% coverage
 - Dependencies: `miniflux` (RSS API), `ollama` (AI client), `pydantic` (data validation), `pytest-cov` (testing)
-- Uses environment variables: `MINIFLUX_API_KEY`, `MINIFLUX_URL`, `LOG_LEVEL`, `LOG_FORMAT`
+- Uses environment variables: `MINIFLUX_API_KEY`, `MINIFLUX_URL`, `LOG_LEVEL`, `LOG_FORMAT`, `ARTICLE_HOURS_BACK` (default: 6)
 - Uses local Ollama endpoint: `http://localhost:11434`
 
 ## Code Style
