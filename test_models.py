@@ -205,7 +205,7 @@ def test_json_serialization():
     json_data = article.model_dump()
     
     # Verify all expected fields are present
-    expected_fields = {"id", "title", "url", "published_at", "content", "source", "author", "truncated"}
+    expected_fields = {"id", "title", "url", "published_at", "content", "source", "author", "category", "truncated"}
     assert set(json_data.keys()) == expected_fields
     
     # Verify field values

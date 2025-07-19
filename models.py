@@ -12,16 +12,7 @@ class MinifluxBase(BaseModel):
     model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
 
-class CategoryEnum(str, Enum):
-    """Predefined categories for article classification."""
-    TECHNOLOGY = "Technology"
-    BUSINESS = "Business"
-    POLITICS = "Politics"
-    SCIENCE = "Science"
-    SPORTS = "Sports"
-    ENTERTAINMENT = "Entertainment"
-    HEALTH = "Health"
-    OTHER = "Other"
+# Note: CategoryEnum removed - categories now come from Miniflux feed categories
 
 
 class Category(MinifluxBase):
@@ -127,6 +118,7 @@ class ArticleInput(BaseModel):
     content: str = Field(..., description="Article content (plain text, truncated if needed)")
     source: str = Field(..., description="Source feed title")
     author: str = Field(..., description="Article author")
+    category: str = Field(..., description="Feed category from Miniflux")
     truncated: bool = Field(False, description="Whether content was truncated")
     
     @classmethod
@@ -138,6 +130,11 @@ class ArticleInput(BaseModel):
         # Truncate if needed with ellipsis
         content, truncated = truncate_content(plain_content, max_content_length)
         
+        # Get category from feed
+        category = "Uncategorized"
+        if entry.feed and entry.feed.category and entry.feed.category.title:
+            category = entry.feed.category.title
+        
         return cls(
             id=entry.id,
             title=entry.title or "Untitled",
@@ -146,6 +143,7 @@ class ArticleInput(BaseModel):
             content=content,
             source=entry.feed.title if entry.feed else "Unknown",
             author=entry.author or "Unknown",
+            category=category,
             truncated=truncated
         )
 
@@ -155,7 +153,7 @@ class ArticleSummary(BaseModel):
     id: int = Field(..., description="Original article ID")
     title: str = Field(..., description="Article title")
     summary: str = Field(..., description="2-4 sentence summary")
-    category: CategoryEnum = Field(..., description="Article category")
+    category: str = Field(..., description="Feed category from Miniflux")
     source: str = Field(..., description="Source feed title")
     url: str = Field(..., description="Article URL")
     published_at: Optional[str] = Field(None, description="When article was published")

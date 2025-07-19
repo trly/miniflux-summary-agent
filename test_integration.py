@@ -7,7 +7,7 @@ import asyncio
 
 from models import (
     Entry, Feed, Category, Icon, ArticleInput, ArticleSummary, 
-    CategoryEnum, EntriesResponse, strip_html, truncate_content
+    EntriesResponse, strip_html, truncate_content
 )
 from main import process_article, summarize_article, main
 
@@ -188,6 +188,7 @@ class TestProcessArticle:
             content="Scientists have developed a revolutionary new AI system...",
             source="Tech News Feed",
             author="Dr. Jane Smith",
+            category="Technology",
             truncated=False
         )
     
@@ -200,8 +201,7 @@ class TestProcessArticle:
                     'function': {
                         'name': 'summarize_article',
                         'arguments': {
-                            'summary': 'Scientists developed a revolutionary AI system with 95% accuracy.',
-                            'category': 'TECHNOLOGY'
+                            'summary': 'Scientists developed a revolutionary AI system with 95% accuracy.'
                         }
                     }
                 }]
@@ -220,7 +220,7 @@ class TestProcessArticle:
             assert result.id == 888
             assert result.title == "Revolutionary AI Technology Breakthrough"
             assert result.summary == "Scientists developed a revolutionary AI system with 95% accuracy."
-            assert result.category == CategoryEnum.TECHNOLOGY
+            assert result.category == "Technology"  # Uses category from feed data
             assert result.source == "Tech News Feed"
             assert result.author == "Dr. Jane Smith"
             assert result.truncated is False
@@ -250,7 +250,7 @@ class TestProcessArticle:
             # Verify fallback behavior
             assert isinstance(result, ArticleSummary)
             assert result.summary == "Tool call failed"
-            assert result.category == CategoryEnum.OTHER
+            assert result.category == "Technology"  # Uses category from feed data
             assert result.id == sample_article.id
     
     @pytest.mark.asyncio
@@ -276,7 +276,7 @@ class TestProcessArticle:
             
             # Verify fallback behavior
             assert result.summary == "Function not found"
-            assert result.category == CategoryEnum.OTHER
+            assert result.category == "Technology"  # Uses category from feed data
     
     @pytest.mark.asyncio
     async def test_ollama_connection_error(self, sample_article):
@@ -291,7 +291,7 @@ class TestProcessArticle:
             # Verify error handling
             assert isinstance(result, ArticleSummary)
             assert result.summary == "Processing failed"
-            assert result.category == CategoryEnum.OTHER
+            assert result.category == "Technology"  # Uses category from feed data
             assert result.id == sample_article.id
     
     @pytest.mark.asyncio
@@ -305,35 +305,26 @@ class TestProcessArticle:
             result = await process_article(sample_article)
             
             assert result.summary == "Processing failed"
-            assert result.category == CategoryEnum.OTHER
+            assert result.category == "Technology"  # Uses category from feed data
 
 
 class TestCategoryMapping:
     """Test category mapping logic including fallback when LLM fails."""
     
     def test_valid_category_mapping(self):
-        """Test all valid category mappings."""
-        valid_categories = [
-            ("TECHNOLOGY", CategoryEnum.TECHNOLOGY),
-            ("BUSINESS", CategoryEnum.BUSINESS),
-            ("POLITICS", CategoryEnum.POLITICS),
-            ("SCIENCE", CategoryEnum.SCIENCE),
-            ("SPORTS", CategoryEnum.SPORTS),
-            ("ENTERTAINMENT", CategoryEnum.ENTERTAINMENT),
-            ("HEALTH", CategoryEnum.HEALTH),
-            ("OTHER", CategoryEnum.OTHER)
-        ]
-        
-        for category_text, expected_enum in valid_categories:
-            result = summarize_article("Test summary", category_text)
-            assert result['category'] == category_text
+        """Test that categories are now taken from feed categories, not inferred."""
+        # With the new implementation, categories come from Miniflux feeds
+        # not from AI inference, so this test verifies the function signature
+        result = summarize_article("Test summary")
+        assert result["summary"] == "Test summary"
+        assert "category" not in result  # Category no longer returned by this function
     
     @pytest.mark.asyncio
     async def test_invalid_category_fallback(self):
-        """Test fallback to OTHER when invalid category is provided."""
+        """Test that categories come from feed data."""
         article = ArticleInput(
             id=1, title="Test", url="http://test.com", content="Test content",
-            source="Test Source", author="Test Author", truncated=False
+            source="Test Source", author="Test Author", category="Technology", truncated=False
         )
         
         mock_response = {
@@ -342,8 +333,7 @@ class TestCategoryMapping:
                     'function': {
                         'name': 'summarize_article',
                         'arguments': {
-                            'summary': 'Test summary',
-                            'category': 'INVALID_CATEGORY'  # Invalid category
+                            'summary': 'Test summary'
                         }
                     }
                 }]
@@ -357,15 +347,15 @@ class TestCategoryMapping:
             
             result = await process_article(article)
             
-            # Should fallback to OTHER for invalid category
-            assert result.category == CategoryEnum.OTHER
+            # Should use the category from the article (feed data)
+            assert result.category == "Technology"
     
     @pytest.mark.asyncio
     async def test_missing_category_fallback(self):
-        """Test fallback when category is missing from LLM response."""
+        """Test that category comes from feed data, not LLM response."""
         article = ArticleInput(
             id=1, title="Test", url="http://test.com", content="Test content",
-            source="Test Source", author="Test Author", truncated=False
+            source="Test Source", author="Test Author", category="Sports", truncated=False
         )
         
         mock_response = {
@@ -389,8 +379,8 @@ class TestCategoryMapping:
             
             result = await process_article(article)
             
-            # Should fallback to OTHER when category is missing
-            assert result.category == CategoryEnum.OTHER
+            # Should use the category from the article (feed data)
+            assert result.category == "Sports"
 
 
 class TestMainFunctionErrorHandling:
@@ -403,10 +393,11 @@ class TestMainFunctionErrorHandling:
              patch('os.getenv') as mock_getenv, \
              patch('main.load_dotenv'):
             
-            mock_getenv.side_effect = lambda key: {
+            mock_getenv.side_effect = lambda key, default=None: {
                 'MINIFLUX_URL': 'http://localhost:8080',
-                'MINIFLUX_API_KEY': 'test-key'
-            }.get(key)
+                'MINIFLUX_API_KEY': 'test-key',
+                'ARTICLE_HOURS_BACK': '6'
+            }.get(key, default)
             
             mock_client = Mock()
             mock_client.get_entries.side_effect = ConnectionError("Connection refused")
@@ -423,10 +414,11 @@ class TestMainFunctionErrorHandling:
              patch('os.getenv') as mock_getenv, \
              patch('main.load_dotenv'):
             
-            mock_getenv.side_effect = lambda key: {
+            mock_getenv.side_effect = lambda key, default=None: {
                 'MINIFLUX_URL': 'http://localhost:8080',
-                'MINIFLUX_API_KEY': 'invalid-key'
-            }.get(key)
+                'MINIFLUX_API_KEY': 'invalid-key',
+                'ARTICLE_HOURS_BACK': '6'
+            }.get(key, default)
             
             mock_client = Mock()
             mock_client.get_entries.side_effect = Exception("Authentication failed")
@@ -448,10 +440,11 @@ class TestMainFunctionErrorHandling:
              patch('os.getenv') as mock_getenv, \
              patch('main.load_dotenv'):
             
-            mock_getenv.side_effect = lambda key: {
+            mock_getenv.side_effect = lambda key, default=None: {
                 'MINIFLUX_URL': 'http://localhost:8080',
-                'MINIFLUX_API_KEY': 'test-key'
-            }.get(key)
+                'MINIFLUX_API_KEY': 'test-key',
+                'ARTICLE_HOURS_BACK': '6'
+            }.get(key, default)
             
             mock_client = Mock()
             mock_client.get_entries.return_value = old_entries
@@ -468,10 +461,11 @@ class TestMainFunctionErrorHandling:
              patch('main.load_dotenv'), \
              patch('models.ArticleInput.from_entry') as mock_from_entry:
             
-            mock_getenv.side_effect = lambda key: {
+            mock_getenv.side_effect = lambda key, default=None: {
                 'MINIFLUX_URL': 'http://localhost:8080',
-                'MINIFLUX_API_KEY': 'test-key'
-            }.get(key)
+                'MINIFLUX_API_KEY': 'test-key',
+                'ARTICLE_HOURS_BACK': '6'
+            }.get(key, default)
             
             mock_client = Mock()
             mock_client.get_entries.return_value = sample_entries_response
@@ -492,10 +486,11 @@ class TestMainFunctionErrorHandling:
              patch('main.load_dotenv'):
             
             # Mock environment variables
-            mock_getenv.side_effect = lambda key: {
+            mock_getenv.side_effect = lambda key, default=None: {
                 'MINIFLUX_URL': 'http://localhost:8080',
-                'MINIFLUX_API_KEY': 'test-key'
-            }.get(key)
+                'MINIFLUX_API_KEY': 'test-key',
+                'ARTICLE_HOURS_BACK': '6'
+            }.get(key, default)
             
             # Mock Miniflux client
             mock_miniflux_client = Mock()
@@ -509,8 +504,7 @@ class TestMainFunctionErrorHandling:
                         'function': {
                             'name': 'summarize_article',
                             'arguments': {
-                                'summary': 'Test summary for article',
-                                'category': 'TECHNOLOGY'
+                                'summary': 'Test summary for article'
                             }
                         }
                     }]
@@ -534,11 +528,10 @@ class TestMainFunctionErrorHandling:
 
 def test_summarize_article_function():
     """Test the summarize_article function directly."""
-    result = summarize_article("This is a test summary", "TECHNOLOGY")
+    result = summarize_article("This is a test summary")
     
     assert result == {
-        "summary": "This is a test summary",
-        "category": "TECHNOLOGY"
+        "summary": "This is a test summary"
     }
 
 

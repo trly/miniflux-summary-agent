@@ -9,7 +9,7 @@ import ollama
 from dotenv import load_dotenv
 from jinja2 import Environment, FileSystemLoader
 
-from models import EntriesResponse, ArticleInput, ArticleSummary, CategoryEnum
+from models import EntriesResponse, ArticleInput, ArticleSummary
 
 
 # Configure logging
@@ -32,18 +32,17 @@ def setup_logging():
 logger = setup_logging()
 
 
-def summarize_article(summary: str, category: str) -> dict:
+def summarize_article(summary: str) -> dict:
     """
-    Summarize an article and assign it a category.
+    Summarize an article.
 
     Args:
         summary: A 2-4 sentence summary of the article
-        category: Category from: TECHNOLOGY, BUSINESS, POLITICS, SCIENCE, SPORTS, ENTERTAINMENT, HEALTH, OTHER
 
     Returns:
-        dict: Contains summary and category
+        dict: Contains summary
     """
-    return {"summary": summary, "category": category}
+    return {"summary": summary}
 
 
 async def process_article(article: ArticleInput) -> ArticleSummary:
@@ -60,7 +59,7 @@ async def process_article(article: ArticleInput) -> ArticleSummary:
             messages=[{
                 'role': 'user',
                 'content': f'''
-                Please summarize this article and categorize it using the summarize_article tool:
+                Please summarize this article using the summarize_article tool:
 
                 Title: "{article.title}"
                 Source: {article.source}
@@ -78,26 +77,10 @@ async def process_article(article: ArticleInput) -> ArticleSummary:
             if tool_call['function']['name'] == 'summarize_article':
                 result = summarize_article(**tool_call['function']['arguments'])
                 summary_text = result.get('summary', 'Summary generation failed')
-                category_text = result.get('category', 'OTHER')
             else:
                 summary_text = 'Function not found'
-                category_text = 'OTHER'
 
-            # Map category to enum
-            category_mapping = {
-                "TECHNOLOGY": CategoryEnum.TECHNOLOGY,
-                "BUSINESS": CategoryEnum.BUSINESS,
-                "POLITICS": CategoryEnum.POLITICS,
-                "SCIENCE": CategoryEnum.SCIENCE,
-                "SPORTS": CategoryEnum.SPORTS,
-                "ENTERTAINMENT": CategoryEnum.ENTERTAINMENT,
-                "HEALTH": CategoryEnum.HEALTH,
-                "OTHER": CategoryEnum.OTHER
-            }
-
-            category = category_mapping.get(category_text, CategoryEnum.OTHER)
-
-            # Create ArticleSummary
+            # Create ArticleSummary using the actual feed category
             summary = ArticleSummary(
                 id=article.id,
                 title=article.title,
@@ -106,7 +89,7 @@ async def process_article(article: ArticleInput) -> ArticleSummary:
                 source=article.source,
                 author=article.author,
                 summary=summary_text,
-                category=category,
+                category=article.category,
                 truncated=article.truncated
             )
 
@@ -125,7 +108,7 @@ async def process_article(article: ArticleInput) -> ArticleSummary:
                 source=article.source,
                 author=article.author,
                 summary="Tool call failed",
-                category=CategoryEnum.OTHER,
+                category=article.category,
                 truncated=article.truncated
             )
 
@@ -141,7 +124,7 @@ async def process_article(article: ArticleInput) -> ArticleSummary:
             source=article.source,
             author=article.author,
             summary="Processing failed",
-            category=CategoryEnum.OTHER,
+            category=article.category,
             truncated=article.truncated
         )
 
@@ -257,7 +240,7 @@ async def main():
         # Fallback to console output
         logger.info("Falling back to console output:")
         for category, articles in categories.items():
-            logger.info(f"\n## {category.value} ({len(articles)} articles)")
+            logger.info(f"\n## {category} ({len(articles)} articles)")
             for article in articles:
                 logger.info(f"**{article.title}** - *{article.source}*")
                 logger.info(f"Published: {article.published_at}")
