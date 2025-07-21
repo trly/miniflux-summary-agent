@@ -4,7 +4,7 @@ This guide will help you set up a development environment for the Miniflux Summa
 
 ## Prerequisites
 
-- **Python ≥3.13** (check with `python --version`)
+- **Python ≥3.10** (check with `python --version`)
 - **Docker & Docker Compose** (for running Miniflux locally)
 - **Ollama** (for AI processing)
 
@@ -74,9 +74,13 @@ Add a few RSS feeds to test with:
 
 ```bash
 # Process articles from last 6 hours (default)
-uv run main.py
+uv run miniflux-summary
 
 # Process all articles
+uv run miniflux-summary --all
+
+# Alternative: use legacy main.py entry point
+uv run main.py
 uv run main.py --all
 ```
 
@@ -128,9 +132,17 @@ uv run pytest -v
 
 ### Core Components
 
-- **`main.py`**: Application entry point and orchestration
-- **`models.py`**: Pydantic data models and content processing
-- **`templates/`**: Jinja2 HTML templates for output
+- **`main.py`**: Legacy entry point (use `miniflux-summary` command instead)
+- **`miniflux_summary_agent/`**: Main package directory
+  - **`cli.py`**: Command line interface
+  - **`core.py`**: Application orchestration
+  - **`models.py`**: Pydantic data models
+  - **`fetcher.py`**: Article fetching logic
+  - **`summarizer.py`**: AI summarization
+  - **`renderer.py`**: HTML output generation
+  - **`config.py`**: Environment configuration
+  - **`logging.py`**: Logging setup
+  - **`templates/`**: Jinja2 HTML templates
 
 ### Data Flow
 
@@ -213,7 +225,7 @@ ollama pull deepseek-r1:8b
 
 ```bash
 # Enable debug logging
-LOG_LEVEL=DEBUG uv run main.py
+LOG_LEVEL=DEBUG uv run miniflux-summary
 
 # This will show:
 # - Detailed API requests

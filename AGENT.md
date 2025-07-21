@@ -2,14 +2,22 @@
 
 ## Commands
 - **Run**: `uv run main.py`
+- **Run CLI**: `uv run miniflux-summary`
 - **Install dependencies**: `uv sync`
 - **Add dependency**: `uv add <package>`
-- **Python version**: Requires Python >=3.13
+- **Python version**: Requires Python >=3.10
 - **Test**: `uv run pytest`
 - **Test with coverage**: `uv run pytest --cov`
 - **Coverage report**: `uv run pytest --cov --cov-report=html` (generates htmlcov/ folder)
 - **Coverage threshold**: 85% minimum required (currently 98%)
 - **Coverage with missing lines**: `uv run pytest --cov --cov-report=term-missing`
+- **Lint**: `uv run ruff check`
+- **Lint with auto-fix**: `uv run ruff check --fix`
+- **Format**: `uv run ruff format`
+- **Lint and format**: `uv run ruff check --fix && uv run ruff format`
+
+## Post-Work Quality Check
+**IMPORTANT**: After completing any code changes, always run `uv run ruff check --fix` to catch and fix any formatting or linting issues. If there are issues that can't be automatically fixed, address them manually before considering the work complete.
 
 ## Local Development
 - **Start services**: `docker-compose up -d`

@@ -1,7 +1,8 @@
 """Test HTML stripping and content truncation."""
 
 import pytest
-from models import strip_html, truncate_content
+
+from miniflux_summary_agent.models import strip_html, truncate_content
 
 
 def test_strip_html_basic():
