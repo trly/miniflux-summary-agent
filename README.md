@@ -8,9 +8,6 @@ An intelligent RSS article summarization tool that fetches articles from your [M
 - **Smart Content Detection**: Automatically detects article summaries and fetches full content when needed
 - **AI-Powered Summarization**: Uses Ollama for local AI summarization (no cloud services required)
 - **Category Organization**: Groups summaries by feed categories from your Miniflux setup
-- **Multiple Output Formats**: Generates beautiful HTML reports with fallback to console output
-- **Flexible Time Filtering**: Process articles from the last N hours or all articles
-- **High Test Coverage**: 98% test coverage with comprehensive test suite
 
 ## Quick Start
 
