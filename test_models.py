@@ -93,12 +93,13 @@ def test_nested_models():
     assert entry.feed.category.title == "Another category"
 
 
-def test_article_input_from_entry():
+@pytest.mark.asyncio
+async def test_article_input_from_entry():
     """Test converting Entry to ArticleInput with HTML stripping."""
     entries_response = EntriesResponse.model_validate(sample_response)
     entry = entries_response.entries[0]
     
-    article = ArticleInput.from_entry(entry)
+    article = await ArticleInput.from_entry(entry)
     
     assert article.id == 888
     assert article.title == "Entry Title"
@@ -152,7 +153,8 @@ def test_content_truncation():
     assert truncated is False
 
 
-def test_article_input_with_truncation():
+@pytest.mark.asyncio
+async def test_article_input_with_truncation():
     """Test ArticleInput creation with content truncation."""
     # Create entry with long HTML content
     long_content = "<p>" + "This is a very long paragraph. " * 20 + "</p>"
@@ -163,14 +165,15 @@ def test_article_input_with_truncation():
     entry = Entry.model_validate(entry_data)
     
     # Test with small max_content_length to force truncation
-    article = ArticleInput.from_entry(entry, max_content_length=50)
+    article = await ArticleInput.from_entry(entry, max_content_length=50)
     
     assert len(article.content) == 50
     assert article.content.endswith("…")
     assert article.truncated is True
 
 
-def test_article_input_defaults():
+@pytest.mark.asyncio
+async def test_article_input_defaults():
     """Test ArticleInput handles missing/None values correctly."""
     # Create minimal entry data
     minimal_entry_data = {
@@ -185,7 +188,7 @@ def test_article_input_defaults():
     }
     
     entry = Entry.model_validate(minimal_entry_data)
-    article = ArticleInput.from_entry(entry)
+    article = await ArticleInput.from_entry(entry)
     
     assert article.id == 999
     assert article.title == "Untitled"
@@ -196,11 +199,12 @@ def test_article_input_defaults():
     assert article.truncated is False
 
 
-def test_json_serialization():
+@pytest.mark.asyncio
+async def test_json_serialization():
     """Test JSON serialization of ArticleInput."""
     entries_response = EntriesResponse.model_validate(sample_response)
     entry = entries_response.entries[0]
-    article = ArticleInput.from_entry(entry)
+    article = await ArticleInput.from_entry(entry)
     
     json_data = article.model_dump()
     

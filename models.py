@@ -5,6 +5,9 @@ from typing import Optional
 from enum import Enum
 from pydantic import BaseModel, Field, AnyHttpUrl, ConfigDict
 import re
+import requests
+from bs4 import BeautifulSoup
+import logging
 
 
 class MinifluxBase(BaseModel):
@@ -109,6 +112,106 @@ def truncate_content(content: str, max_length: int) -> tuple[str, bool]:
     return truncated, True
 
 
+def is_single_sentence_summary(content: str) -> bool:
+    """
+    Detect if content appears to be just a single sentence summary.
+    
+    Args:
+        content: The content to analyze
+        
+    Returns:
+        bool: True if content appears to be a single sentence summary
+    """
+    if not content or len(content.strip()) < 20:
+        return True
+    
+    # Clean content for analysis
+    clean_content = strip_html(content).strip()
+    
+    # Count sentences (look for sentence endings)
+    sentence_endings = re.findall(r'[.!?]+(?:\s|$)', clean_content)
+    sentence_count = len(sentence_endings)
+    
+    # Consider it a summary if:
+    # 1. Very short content (less than 100 chars)
+    # 2. Only 1-2 sentences and less than 300 chars
+    # 3. Contains summary-like keywords and less than 400 chars
+    summary_keywords = ['summary', 'excerpt', 'brief', 'overview', 'abstract']
+    has_summary_keywords = any(keyword in clean_content.lower() for keyword in summary_keywords)
+    
+    return (
+        len(clean_content) < 100 or
+        (sentence_count <= 2 and len(clean_content) < 300) or
+        (has_summary_keywords and len(clean_content) < 400)
+    )
+
+
+async def fetch_article_content(url: str, timeout: int = 10) -> Optional[str]:
+    """
+    Fetch the full article content from a URL.
+    
+    Args:
+        url: The article URL to fetch
+        timeout: Request timeout in seconds
+        
+    Returns:
+        str: The article content, or None if fetching failed
+    """
+    logger = logging.getLogger(__name__)
+    
+    try:
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+        
+        response = requests.get(url, headers=headers, timeout=timeout)
+        response.raise_for_status()
+        
+        # Parse HTML content
+        soup = BeautifulSoup(response.content, 'html.parser')
+        
+        # Remove script and style elements
+        for script in soup(["script", "style", "nav", "header", "footer"]):
+            script.decompose()
+        
+        # Try to find main content area
+        content_selectors = [
+            'article', '[role="main"]', '.content', '.post-content', 
+            '.article-content', '.entry-content', 'main', '.main-content'
+        ]
+        
+        content_element = None
+        for selector in content_selectors:
+            content_element = soup.select_one(selector)
+            if content_element:
+                break
+        
+        # Fallback to body if no specific content area found
+        if not content_element:
+            content_element = soup.find('body')
+        
+        if content_element:
+            # Extract text content
+            text_content = content_element.get_text(separator=' ', strip=True)
+            
+            # Clean up the text
+            text_content = re.sub(r'\s+', ' ', text_content).strip()
+            
+            # Return content if it's substantial
+            if len(text_content) > 200:
+                return text_content
+        
+        logger.warning(f"Could not extract substantial content from {url}")
+        return None
+        
+    except requests.RequestException as e:
+        logger.warning(f"Failed to fetch article content from {url}: {e}")
+        return None
+    except Exception as e:
+        logger.error(f"Unexpected error fetching article content from {url}: {e}")
+        return None
+
+
 class ArticleInput(BaseModel):
     """Simplified article input for AI processing."""
     id: int = Field(..., description="Article ID")
@@ -122,10 +225,29 @@ class ArticleInput(BaseModel):
     truncated: bool = Field(False, description="Whether content was truncated")
     
     @classmethod
-    def from_entry(cls, entry: Entry, max_content_length: int = 500) -> "ArticleInput":
+    async def from_entry(cls, entry: Entry, max_content_length: int = 500, fetch_full_content: bool = True) -> "ArticleInput":
         """Create ArticleInput from Miniflux Entry."""
         # Strip HTML and get plain text
         plain_content = strip_html(entry.content or "")
+        
+        # Check if we should fetch full content
+        should_fetch = (
+            fetch_full_content and 
+            entry.url and 
+            is_single_sentence_summary(plain_content)
+        )
+        
+        if should_fetch:
+            logger = logging.getLogger(__name__)
+            logger.debug(f"Detected summary content for article {entry.id}, fetching full content from {entry.url}")
+            
+            # Try to fetch full article content
+            full_content = await fetch_article_content(entry.url)
+            if full_content:
+                plain_content = full_content
+                logger.debug(f"Successfully fetched {len(full_content)} chars for article {entry.id}")
+            else:
+                logger.warning(f"Failed to fetch full content for article {entry.id}, using original content")
         
         # Truncate if needed with ellipsis
         content, truncated = truncate_content(plain_content, max_content_length)

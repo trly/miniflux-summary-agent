@@ -100,9 +100,10 @@ def sample_entries_response(sample_entry, sample_entry_long_content):
 class TestArticleInputFromEntry:
     """Test ArticleInput.from_entry() end-to-end (HTML → plain text → truncation)."""
     
-    def test_html_to_plain_text_conversion(self, sample_entry):
+    @pytest.mark.asyncio
+    async def test_html_to_plain_text_conversion(self, sample_entry):
         """Test complete HTML to plain text conversion."""
-        article = ArticleInput.from_entry(sample_entry)
+        article = await ArticleInput.from_entry(sample_entry)
         
         # Verify HTML tags are removed
         assert "<" not in article.content
@@ -123,21 +124,23 @@ class TestArticleInputFromEntry:
         assert article.published_at == "2024-01-15T10:30:00Z"
         assert article.truncated is False
     
-    def test_content_truncation(self, sample_entry_long_content):
+    @pytest.mark.asyncio
+    async def test_content_truncation(self, sample_entry_long_content):
         """Test content truncation when max length is exceeded."""
         # Use small max length to force truncation
-        article = ArticleInput.from_entry(sample_entry_long_content, max_content_length=100)
+        article = await ArticleInput.from_entry(sample_entry_long_content, max_content_length=100)
         
         assert len(article.content) == 100
         assert article.content.endswith("…")
         assert article.truncated is True
         
         # Test no truncation with large max length
-        article_no_truncation = ArticleInput.from_entry(sample_entry_long_content, max_content_length=5000)
+        article_no_truncation = await ArticleInput.from_entry(sample_entry_long_content, max_content_length=5000)
         assert article_no_truncation.truncated is False
         assert not article_no_truncation.content.endswith("…")
     
-    def test_missing_optional_fields(self, sample_feed):
+    @pytest.mark.asyncio
+    async def test_missing_optional_fields(self, sample_feed):
         """Test handling of missing optional fields."""
         entry = Entry(
             id=123,
@@ -150,7 +153,7 @@ class TestArticleInputFromEntry:
             feed=sample_feed
         )
         
-        article = ArticleInput.from_entry(entry)
+        article = await ArticleInput.from_entry(entry)
         
         assert article.title == "Untitled"
         assert article.url == ""
@@ -159,7 +162,8 @@ class TestArticleInputFromEntry:
         assert article.source == "Tech News Feed"
         assert article.truncated is False
     
-    def test_missing_feed_info(self):
+    @pytest.mark.asyncio
+    async def test_missing_feed_info(self):
         """Test handling when feed info is missing."""
         entry = Entry(
             id=123,
@@ -170,7 +174,7 @@ class TestArticleInputFromEntry:
             feed=None
         )
         
-        article = ArticleInput.from_entry(entry)
+        article = await ArticleInput.from_entry(entry)
         assert article.source == "Unknown"
 
 
@@ -471,8 +475,10 @@ class TestMainFunctionErrorHandling:
             mock_client.get_entries.return_value = sample_entries_response
             mock_miniflux.return_value = mock_client
             
-            # Make from_entry raise an exception
-            mock_from_entry.side_effect = Exception("Conversion failed")
+            # Make from_entry raise an exception (it's now async)
+            async def failing_from_entry(*args, **kwargs):
+                raise Exception("Conversion failed")
+            mock_from_entry.side_effect = failing_from_entry
             
             result = await main()
             assert result is None

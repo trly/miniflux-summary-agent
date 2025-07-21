@@ -25,6 +25,9 @@ def setup_logging():
             logging.StreamHandler()
         ]
     )
+    
+    # Set httpx logger to WARNING to suppress INFO level HTTP request logs
+    logging.getLogger('httpx').setLevel(logging.WARNING)
 
     return logging.getLogger(__name__)
 
@@ -52,7 +55,7 @@ async def process_article(article: ArticleInput) -> ArticleSummary:
         # Use Ollama client directly with tool calling
         client = ollama.Client(host=os.getenv('AI_URL'))
 
-        logger.info(f"Processing article {article.id}: {article.title}")
+        logger.debug(f"Processing article {article.id}: {article.title}")
 
         response = client.chat(
             model='llama3.1:8b',
@@ -93,7 +96,7 @@ async def process_article(article: ArticleInput) -> ArticleSummary:
                 truncated=article.truncated
             )
 
-            logger.info(f"Successfully processed article {article.id}")
+            logger.debug(f"Successfully processed article {article.id}")
             return summary
         else:
             logger.warning(f"No tool calls found for article {article.id}")
@@ -131,7 +134,6 @@ async def process_article(article: ArticleInput) -> ArticleSummary:
 
 async def main():
     """Main application function."""
-    logger.info("Starting RSS summarization agent...")
 
     # Load environment variables
     load_dotenv()
@@ -149,7 +151,7 @@ async def main():
     # Convert to Unix timestamp for Miniflux API
     published_after_timestamp = int(time_threshold.timestamp())
     
-    logger.info(f"Fetching articles from the last {hours_back} hours...")
+    logger.debug(f"fetching articles from the last {hours_back} hours")
 
     try:
         # Get entries filtered by time using Miniflux API
@@ -162,7 +164,7 @@ async def main():
         # Parse the response using our Pydantic model
         entries_data = EntriesResponse.model_validate(entries_response)
         
-        logger.info(f"Found {len(entries_data.entries)} articles from the last {hours_back} hours")
+        logger.debug(f"got {len(entries_data.entries)} articles from the last {hours_back} hours")
 
         if not entries_data.entries:
             logger.info(f"No entries found within the last {hours_back} hours")
@@ -172,11 +174,11 @@ async def main():
         logger.error(f"Error fetching entries: {e}", exc_info=True)
         return
 
-    # Convert entries to ArticleInput format
+    # Convert entries to ArticleInput format (with async processing for content fetching)
     articles_for_ai = []
     for entry in entries_data.entries:
         try:
-            article = ArticleInput.from_entry(entry)
+            article = await ArticleInput.from_entry(entry)
             articles_for_ai.append(article)
         except Exception as e:
             logger.warning(f"Error converting entry {entry.id}: {e}")
@@ -186,7 +188,7 @@ async def main():
         logger.info("No valid articles to process")
         return
 
-    logger.info(f"Processing {len(articles_for_ai)} articles using Ollama tool calling...")
+    logger.debug(f"summarizing {len(articles_for_ai)} articles")
 
     # Process articles sequentially to avoid overwhelming the model
     summaries = []
@@ -198,7 +200,7 @@ async def main():
             logger.error(f"Error processing article {article.id}: {e}", exc_info=True)
 
     if not summaries:
-        logger.info("No article summaries generated")
+        logger.info("no article summaries generated")
         return
 
     # Create simple report
@@ -208,7 +210,7 @@ async def main():
             categories[summary.category] = []
         categories[summary.category].append(summary)
 
-    logger.info(f"Generated {len(summaries)} article summaries across {len(categories)} categories")
+    logger.info(f"summarized {len(summaries)} articles from {len(categories)} categories")
 
     # Generate HTML output
     try:
@@ -232,13 +234,13 @@ async def main():
         with open(output_filename, 'w', encoding='utf-8') as f:
             f.write(html_content)
         
-        logger.info(f"HTML summary generated: {output_filename}")
+        logger.info(f"summary generated: {output_filename}")
         
     except Exception as e:
         logger.error(f"Error generating HTML output: {e}", exc_info=True)
         
         # Fallback to console output
-        logger.info("Falling back to console output:")
+        logger.warning("Falling back to console output:")
         for category, articles in categories.items():
             logger.info(f"\n## {category} ({len(articles)} articles)")
             for article in articles:
@@ -249,4 +251,6 @@ async def main():
 
 
 if __name__ == "__main__":
+    logger.info("starting Miniflux AI agent")
     asyncio.run(main())
+    logger.info("Miniflux AI agent shutting down")
