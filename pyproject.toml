@@ -5,8 +5,10 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "miniflux-summary-agent"
 version = "0.1.0"
-description = "RSS article summarization agent using Miniflux and Ollama AI"
+description = "Summarize Miniflux articles with Ollama"
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.10"
 dependencies = [
     "beautifulsoup4>=4.13.4",
@@ -22,6 +24,10 @@ dependencies = [
     "pytest-cov>=6.2.1",
     "pytest-asyncio>=1.1.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/trly/miniflux-summary-agent"
+Issues = "https://github.com/trly/miniflux-summary-agent/issues"
 
 [project.optional-dependencies]
 dev = [
@@ -104,3 +110,4 @@ known-first-party = ["miniflux_summary_agent"]
 quote-style = "double"
 indent-style = "space"
 skip-magic-trailing-comma = false
+
