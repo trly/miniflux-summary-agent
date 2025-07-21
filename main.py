@@ -1,5 +1,6 @@
 """Main application for RSS article summarization using direct Ollama tool calling."""
 
+import argparse
 import asyncio
 from datetime import datetime, timedelta, timezone
 import logging
@@ -93,7 +94,8 @@ async def process_article(article: ArticleInput) -> ArticleSummary:
                 author=article.author,
                 summary=summary_text,
                 category=article.category,
-                truncated=article.truncated
+                truncated=article.truncated,
+                feed_id=article.feed_id
             )
 
             logger.debug(f"Successfully processed article {article.id}")
@@ -112,7 +114,8 @@ async def process_article(article: ArticleInput) -> ArticleSummary:
                 author=article.author,
                 summary="Tool call failed",
                 category=article.category,
-                truncated=article.truncated
+                truncated=article.truncated,
+                feed_id=article.feed_id
             )
 
     except Exception as e:
@@ -128,12 +131,19 @@ async def process_article(article: ArticleInput) -> ArticleSummary:
             author=article.author,
             summary="Processing failed",
             category=article.category,
-            truncated=article.truncated
+            truncated=article.truncated,
+            feed_id=article.feed_id
         )
 
 
 async def main():
     """Main application function."""
+
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description='RSS article summarization using Ollama')
+    parser.add_argument('--all', action='store_true', 
+                        help='Fetch all articles instead of using time filter')
+    args = parser.parse_args()
 
     # Load environment variables
     load_dotenv()
@@ -144,30 +154,46 @@ async def main():
         api_key=os.getenv("MINIFLUX_API_KEY")
     )
 
-    # Get time range from environment variable (default to 6 hours)
-    hours_back = int(os.getenv('ARTICLE_HOURS_BACK', '6'))
-    time_threshold = datetime.now(timezone.utc) - timedelta(hours=hours_back)
-    
-    # Convert to Unix timestamp for Miniflux API
-    published_after_timestamp = int(time_threshold.timestamp())
-    
-    logger.debug(f"fetching articles from the last {hours_back} hours")
+    # Determine fetch parameters based on --all flag
+    if args.all:
+        logger.debug("fetching all articles")
+        get_entries_kwargs = {
+            'order': 'published_at',
+            'direction': 'desc'
+        }
+    else:
+        # Get time range from environment variable (default to 6 hours)
+        hours_back = int(os.getenv('ARTICLE_HOURS_BACK', '6'))
+        time_threshold = datetime.now(timezone.utc) - timedelta(hours=hours_back)
+        
+        # Convert to Unix timestamp for Miniflux API
+        published_after_timestamp = int(time_threshold.timestamp())
+        
+        logger.debug(f"fetching articles from the last {hours_back} hours")
+        
+        get_entries_kwargs = {
+            'published_after': published_after_timestamp,
+            'order': 'published_at',
+            'direction': 'desc'
+        }
 
     try:
-        # Get entries filtered by time using Miniflux API
-        entries_response = miniflux_client.get_entries(
-            published_after=published_after_timestamp,
-            order='published_at',
-            direction='desc'
-        )
+        # Get entries using Miniflux API
+        entries_response = miniflux_client.get_entries(**get_entries_kwargs)
 
         # Parse the response using our Pydantic model
         entries_data = EntriesResponse.model_validate(entries_response)
         
-        logger.debug(f"got {len(entries_data.entries)} articles from the last {hours_back} hours")
+        if args.all:
+            logger.debug(f"got {len(entries_data.entries)} articles total")
+        else:
+            logger.debug(f"got {len(entries_data.entries)} articles from the last {hours_back} hours")
 
         if not entries_data.entries:
-            logger.info(f"No entries found within the last {hours_back} hours")
+            if args.all:
+                logger.info("No entries found")
+            else:
+                logger.info(f"No entries found within the last {hours_back} hours")
             return
 
     except Exception as e:
@@ -223,7 +249,8 @@ async def main():
             'categories': categories,
             'total_articles': len(summaries),
             'total_categories': len(categories),
-            'generation_time': datetime.now()
+            'generation_time': datetime.now(),
+            'miniflux_url': os.getenv("MINIFLUX_URL")
         }
         
         # Render HTML

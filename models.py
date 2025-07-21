@@ -201,7 +201,7 @@ async def fetch_article_content(url: str, timeout: int = 10) -> Optional[str]:
             if len(text_content) > 200:
                 return text_content
         
-        logger.warning(f"Could not extract substantial content from {url}")
+        logger.debug(f"Could not extract substantial content from {url}")
         return None
         
     except requests.RequestException as e:
@@ -223,6 +223,7 @@ class ArticleInput(BaseModel):
     author: str = Field(..., description="Article author")
     category: str = Field(..., description="Feed category from Miniflux")
     truncated: bool = Field(False, description="Whether content was truncated")
+    feed_id: int = Field(..., description="Feed ID from Miniflux")
     
     @classmethod
     async def from_entry(cls, entry: Entry, max_content_length: int = 500, fetch_full_content: bool = True) -> "ArticleInput":
@@ -266,7 +267,8 @@ class ArticleInput(BaseModel):
             source=entry.feed.title if entry.feed else "Unknown",
             author=entry.author or "Unknown",
             category=category,
-            truncated=truncated
+            truncated=truncated,
+            feed_id=entry.feed_id
         )
 
 
@@ -281,6 +283,7 @@ class ArticleSummary(BaseModel):
     published_at: Optional[str] = Field(None, description="When article was published")
     author: str = Field(..., description="Article author")
     truncated: bool = Field(False, description="Whether content was truncated")
+    feed_id: int = Field(..., description="Feed ID from Miniflux")
 
 
 # NOTE: These models are unused but kept for potential future use

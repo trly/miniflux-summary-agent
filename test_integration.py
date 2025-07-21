@@ -193,7 +193,8 @@ class TestProcessArticle:
             source="Tech News Feed",
             author="Dr. Jane Smith",
             category="Technology",
-            truncated=False
+            truncated=False,
+            feed_id=123
         )
     
     @pytest.mark.asyncio
@@ -328,7 +329,8 @@ class TestCategoryMapping:
         """Test that categories come from feed data."""
         article = ArticleInput(
             id=1, title="Test", url="http://test.com", content="Test content",
-            source="Test Source", author="Test Author", category="Technology", truncated=False
+            source="Test Source", author="Test Author", category="Technology", truncated=False,
+            feed_id=456
         )
         
         mock_response = {
@@ -359,7 +361,8 @@ class TestCategoryMapping:
         """Test that category comes from feed data, not LLM response."""
         article = ArticleInput(
             id=1, title="Test", url="http://test.com", content="Test content",
-            source="Test Source", author="Test Author", category="Sports", truncated=False
+            source="Test Source", author="Test Author", category="Sports", truncated=False,
+            feed_id=789
         )
         
         mock_response = {
