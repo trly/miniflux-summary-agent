@@ -2,13 +2,6 @@
 
 An intelligent RSS article summarization tool that fetches articles from your [Miniflux](https://miniflux.app/) RSS reader and generates concise AI-powered summaries organized by category.
 
-## Features
-
-- **Automatic Article Fetching**: Connects to your Miniflux instance to retrieve recent articles
-- **Smart Content Detection**: Automatically detects article summaries and fetches full content when needed
-- **AI-Powered Summarization**: Uses Ollama for local AI summarization (no cloud services required)
-- **Category Organization**: Groups summaries by feed categories from your Miniflux setup
-
 ## Quick Start
 
 1. **Prerequisites**: Ensure you have [Miniflux](https://miniflux.app/) running and [Ollama](https://ollama.com/) installed locally
@@ -20,25 +13,9 @@ An intelligent RSS article summarization tool that fetches articles from your [M
 The agent follows a simple workflow:
 
 1. **Fetch**: Retrieves articles from your Miniflux RSS reader using the API
-2. **Enhance**: Detects brief summaries and fetches full article content when possible
-3. **Summarize**: Processes each article through Ollama AI to generate 2-4 sentence summaries
-4. **Organize**: Groups summaries by category and generates an HTML report
-
-## Example Output
-
-The agent generates timestamped HTML files with summaries organized by category:
-
-```
-## Technology (3 articles)
-**New Python 3.13 Features** - *Real Python*
-Published: 2024-01-15T10:30:00Z
-Summary: Python 3.13 introduces significant performance improvements and new syntax features...
-
-## Science (2 articles)
-**Climate Research Breakthrough** - *Nature*
-Published: 2024-01-15T09:15:00Z
-Summary: Researchers discover new carbon capture method that could revolutionize...
-```
+2. **Enhance**: Detects brief summaries and fetches full article content when possible, or if needed
+3. **Summarize**: Processes each article through Ollama to generate 2-4 sentence summaries
+5. **Organize**: Groups summaries by category and generates an HTML report
 
 ## Configuration
 
@@ -53,7 +30,7 @@ Configure via environment variables:
 
 - Python ≥3.13
 - [Miniflux](https://miniflux.app/) RSS reader instance
-- [Ollama](https://ollama.com/) with a language model (currently uses llama3.1:8b)
+- [Ollama](https://ollama.com/) with uses [llama3.1:8b](https://ollama.com/library/llama3.1:8b)
 
 ## Development
 
