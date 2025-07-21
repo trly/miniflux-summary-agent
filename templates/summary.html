@@ -232,7 +232,7 @@
         {% for category, articles in categories.items() %}
         <section class="category-section">
             <h2 class="category-header">
-                {{ category.value }}
+                {{ category }}
                 <span class="category-count">({{ articles|length }} articles)</span>
             </h2>
             
@@ -243,7 +243,7 @@
                         <a href="{{ article.url }}" target="_blank" rel="noopener noreferrer">
                             {{ article.title }}
                         </a>
-                        <span class="article-category">{{ article.category.value }}</span>
+                        <span class="article-category">{{ article.category }}</span>
                     </h3>
                     
                     <div class="article-meta">
