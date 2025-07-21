@@ -1,0 +1,13 @@
+coverage:
+  status:
+    project:
+      default:
+        target: 85%
+        threshold: 1%
+
+ignore:
+  - "test_*.py"
+  - ".venv/*"
+  - "__pycache__/*"
+  - ".pytest_cache/*"
+  - "htmlcov/*"
