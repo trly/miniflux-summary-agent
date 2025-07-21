@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "miniflux-summary-agent"
+name = "miniflux-summary-agent_trly"
 version = "0.1.0"
 description = "Summarize Miniflux articles with Ollama"
 readme = "README.md"
