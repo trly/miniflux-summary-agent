@@ -126,4 +126,5 @@ skip-magic-trailing-comma = false
 
 [tool.setuptools_scm]
 version_scheme = "post-release"
+local_scheme = "no-local-version"
 
