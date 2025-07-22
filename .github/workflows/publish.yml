@@ -64,7 +64,7 @@ jobs:
         run: uv tool install build
       
       - name: Build package
-        run: uv tool run build
+        run: uv tool run pyproject-build
       
       - name: Check package
         run: |
