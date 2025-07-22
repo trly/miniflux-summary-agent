@@ -1,15 +1,34 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=61", "setuptools-scm[toml]>=7"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "miniflux-summary-agent_trly"
-version = "0.1.0"
+name = "miniflux-summary-agent"
+dynamic = ["version"]
 description = "Summarize Miniflux articles with Ollama"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
-requires-python = ">=3.13"
+requires-python = ">=3.10"
+authors = [
+    { name = "trly", email = "travis.lyons@gmail.com" }
+]
+keywords = ["rss", "miniflux", "ollama", "summarization", "ai", "news"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: End Users/Desktop",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Text Processing :: Markup :: HTML",
+    "Topic :: Utilities",
+]
 dependencies = [
     "beautifulsoup4>=4.13.4",
     "python-dotenv>=0.19.0",
@@ -20,9 +39,6 @@ dependencies = [
     "pydantic>=2.0.0",
     "requests>=2.32.4",
     "httpx>=0.28.1",
-    "pytest>=8.4.1",
-    "pytest-cov>=6.2.1",
-    "pytest-asyncio>=1.1.0",
 ]
 
 [project.urls]
@@ -34,6 +50,7 @@ dev = [
     "pytest>=8.4.1",
     "pytest-asyncio>=1.1.0",
     "pytest-cov>=6.0.0",
+    "ruff>=0.12.4",
 ]
 
 [project.scripts]
@@ -41,6 +58,7 @@ miniflux-summary = "miniflux_summary_agent.cli:cli_main"
 
 [tool.setuptools.packages.find]
 include = ["miniflux_summary_agent*"]
+exclude = ["tests*", "docs*", "examples*"]
 
 [tool.setuptools]
 include-package-data = true
@@ -78,11 +96,6 @@ exclude_lines = [
 ]
 show_missing = true
 
-[dependency-groups]
-dev = [
-    "ruff>=0.12.4",
-]
-
 [tool.ruff]
 target-version = "py310"
 line-length = 88
@@ -110,4 +123,7 @@ known-first-party = ["miniflux_summary_agent"]
 quote-style = "double"
 indent-style = "space"
 skip-magic-trailing-comma = false
+
+[tool.setuptools_scm]
+version_scheme = "post-release"
 

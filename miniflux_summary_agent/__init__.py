@@ -4,7 +4,11 @@ from .core import run_summarization, summarize
 from .logging import setup_logging
 from .models import ArticleInput, ArticleSummary, EntriesResponse
 
-__version__ = "0.1.0"
+try:
+    from importlib.metadata import version
+    __version__ = version("miniflux-summary-agent")
+except ImportError:
+    __version__ = "unknown"
 __all__ = [
     "run_summarization",
     "summarize",

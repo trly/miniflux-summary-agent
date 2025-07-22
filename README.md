@@ -2,11 +2,30 @@
 
 An intelligent RSS article summarization tool that fetches articles from your [Miniflux](https://miniflux.app/) RSS reader and generates concise AI-powered summaries organized by category.
 
+## Installation
+
+```bash
+pip install miniflux-summary-agent
+```
+
 ## Quick Start
 
 1. **Prerequisites**: Ensure you have [Miniflux](https://miniflux.app/) running and [Ollama](https://ollama.com/) installed locally
-2. **Setup**: Follow the [Development Guide](DEVELOPMENT.md) for detailed setup instructions
-3. **Run**: `uv run main.py` to generate summaries for the last 6 hours of articles
+2. **Setup**: Configure environment variables (see Configuration section)
+3. **Run**: `miniflux-summary` to generate summaries for the last 6 hours of articles
+
+### Python Usage
+
+```python
+from miniflux_summary_agent import run_summarization
+
+# Generate summaries
+await run_summarization()
+```
+
+### Development Setup
+
+For development setup and contribution guidelines, see the [Development Guide](https://github.com/trly/miniflux-summary-agent/blob/main/DEVELOPMENT.md)
 
 ## How It Works
 
@@ -28,13 +47,9 @@ Configure via environment variables:
 
 ## Requirements
 
-- Python ≥3.13
+- Python ≥3.10
 - [Miniflux](https://miniflux.app/) RSS reader instance
-- [Ollama](https://ollama.com/) with uses [llama3.1:8b](https://ollama.com/library/llama3.1:8b)
-
-## Development
-
-See [DEVELOPMENT.md](DEVELOPMENT.md) for complete setup instructions, testing, and contribution guidelines.
+- [Ollama](https://ollama.com/) with [deepseek-r1:8b](https://ollama.com/library/deepseek-r1:8b) model
 
 ## License
 
