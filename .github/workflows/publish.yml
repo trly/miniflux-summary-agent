@@ -3,7 +3,7 @@ name: Publish to PyPI
 on:
   push:
     tags:
-      - 'v*'
+      - 'v[0-9]+.[0-9]+.[0-9]+' # Only release versions like v1.2.3, not v1.2.3.dev0 or v1.2.3.post1
 
 jobs:
   test:
@@ -64,19 +64,6 @@ jobs:
       
       - name: Install build dependencies
         run: uv tool install build
-      
-      - name: Install setuptools-scm for version checking
-        run: uv tool install setuptools-scm
-      
-      - name: Ensure we are on a release tag
-        run: |
-          python - <<'PY'
-          import sys, setuptools_scm
-          v = setuptools_scm.get_version()
-          if 'post' in v or 'dev' in v:
-              sys.exit(f"Refusing to publish non-release version: {v}")
-          print(f"✓ Releasing exact tag version: {v}")
-          PY
 
       - name: Build package
         run: uv tool run --from build pyproject-build
