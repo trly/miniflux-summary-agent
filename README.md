@@ -1,9 +1,20 @@
 # Miniflux Summary Agent
 
-An intelligent RSS article summarization tool that fetches articles from your [Miniflux](https://miniflux.app/) RSS reader and generates concise AI-powered summaries organized by category.
+A command-line RSS article summarization tool that fetches articles from your [Miniflux](https://miniflux.app/) RSS reader and generates concise AI-powered summaries organized by category.
 
 ## Installation
 
+### Using pipx (recommended)
+```bash
+pipx install miniflux-summary-agent
+```
+
+### Using uvx
+```bash
+uvx miniflux-summary-agent
+```
+
+### Using pip
 ```bash
 pip install miniflux-summary-agent
 ```
@@ -12,16 +23,9 @@ pip install miniflux-summary-agent
 
 1. **Prerequisites**: Ensure you have [Miniflux](https://miniflux.app/) running and [Ollama](https://ollama.com/) installed locally
 2. **Setup**: Configure environment variables (see Configuration section)
-3. **Run**: `miniflux-summary` to generate summaries for the last 6 hours of articles
-
-### Python Usage
-
-```python
-from miniflux_summary_agent import run_summarization
-
-# Generate summaries
-await run_summarization()
-```
+3. **Run**: 
+   - `miniflux-summary` (if installed globally)
+   - `python -m miniflux-summary-agent` (alternative)
 
 ### Development Setup
 
