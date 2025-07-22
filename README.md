@@ -53,7 +53,7 @@ Configure via environment variables:
 
 - Python ≥3.10
 - [Miniflux](https://miniflux.app/) RSS reader instance
-- [Ollama](https://ollama.com/) with [deepseek-r1:8b](https://ollama.com/library/deepseek-r1:8b) model
+- [Ollama](https://ollama.com/) with [llama3.1:8b](https://ollama.com/library/llama3.1:8b) model
 
 ## License
 
