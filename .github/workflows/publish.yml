@@ -44,8 +44,10 @@ jobs:
   build-and-publish:
     needs: test
     runs-on: ubuntu-latest
+    environment: pypi  # GitHub environment for PyPI publishing
     permissions:
       id-token: write  # Required for trusted publishing
+      contents: read   # Required to read repository contents
     
     steps:
       - uses: actions/checkout@v4

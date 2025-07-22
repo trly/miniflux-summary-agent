@@ -46,8 +46,10 @@ jobs:
     needs: test-build
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    environment: testpypi  # GitHub environment for TestPyPI publishing
     permissions:
       id-token: write  # Required for trusted publishing
+      contents: read   # Required to read repository contents
     
     steps:
       - uses: actions/checkout@v4
