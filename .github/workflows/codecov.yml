@@ -23,8 +23,8 @@ jobs:
       uses: astral-sh/setup-uv@v4
       
     - name: Install dependencies
-      run: uv sync
-      
+      run: uv sync --extra dev
+
     - name: Run tests with coverage
       run: uv run pytest --cov --cov-report=xml --ignore=tests/test_integration.py
       
@@ -32,4 +32,4 @@ jobs:
       uses: codecov/codecov-action@v4
       with:
         file: ./coverage.xml
-        fail_ci_if_error: true
+        fail_ci_if_error: false
